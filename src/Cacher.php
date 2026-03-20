@@ -25,6 +25,8 @@
     use Wingman\Stasis\Adapters\LocalAdapter;
     use Wingman\Stasis\Bridge\Cortex\Attributes\Configurable;
     use Wingman\Stasis\Bridge\Cortex\Configuration;
+    use Wingman\Stasis\Bridge\Corvus\Emitter;
+    use Wingman\Stasis\Enums\Signal;
     use Wingman\Stasis\Exceptions\InvalidAdapterException;
     use Wingman\Stasis\Exceptions\InvalidShardConfigException;
     use Wingman\Stasis\Exceptions\NonNumericValueException;
@@ -216,7 +218,9 @@
 
             # Delegate to the adapter's native atomic implementation when available.
             if ($this->adapter instanceof CounterInterface) {
-                return $this->adapter->adjustCounter($path, $delta, $resolvedTtl);
+                $newValue = $this->adapter->adjustCounter($path, $delta, $resolvedTtl);
+                Emitter::for($this)->with(key: $key, delta: $delta, value: $newValue)->emit(Signal::COUNTER_ADJUSTED);
+                return $newValue;
             }
 
             # Best-effort read-modify-write fallback for adapters without native counter support.
@@ -251,6 +255,7 @@
 
             $newValue = $current + $delta;
             $this->set($key, $newValue, $resolvedTtl);
+            Emitter::for($this)->with(key: $key, delta: $delta, value: $newValue)->emit(Signal::COUNTER_ADJUSTED);
             return $newValue;
         }
 
@@ -281,7 +286,12 @@
         public function clear () : bool {
             try {
                 $result = $this->adapter->delete($this->getRootDirectory());
-                if ($result) $this->tagManager->clearBuffer();
+
+                if ($result) {
+                    $this->tagManager->clearBuffer();
+                    Emitter::for($this)->emit(Signal::CACHE_CLEARED);
+                }
+
                 return $result;
             }
             catch (Throwable $e) {
@@ -335,6 +345,7 @@
                 }
             }
 
+            Emitter::for($this)->with(tags: $tags, count: $count)->emit(Signal::ITEMS_INVALIDATED);
             return $count;
         }
 
@@ -378,6 +389,7 @@
                 $stats["dirs"] = $this->pruneEmptyDirectories();
             }
 
+            Emitter::for($this)->with(stats: $stats)->emit(Signal::CACHE_COLLECTED);
             return $stats;
         }
 
@@ -470,6 +482,8 @@
                     $lines = array_filter($lines, fn ($line) => !str_starts_with($line, "$relativePath|"));
                     $this->adapter->write($registryFile, implode(PHP_EOL, $lines) . PHP_EOL);
                 }
+
+                Emitter::for($this)->with(key: $key)->emit(Signal::ITEM_DELETED);
             }
 
             return $deleted;
@@ -484,6 +498,7 @@
          */
         public function deleteMultiple (iterable $keys) : bool {
             $success = true;
+            $deletedKeys = [];
             $deletedRelativePaths = [];
 
             foreach ($keys as $key) {
@@ -494,6 +509,7 @@
                     continue;
                 }
 
+                $deletedKeys[] = $key;
                 $deletedRelativePaths[] = PathUtils::getRelativePath($this->getAbsolutePath(), $path);
             }
 
@@ -512,6 +528,7 @@
                 }
             }
 
+            Emitter::for($this)->with(keys: $deletedKeys, success: $success)->emit(Signal::ITEMS_DELETED);
             return $success;
         }
 
@@ -549,6 +566,7 @@
             $path = $this->createPathFromKey($key);
             
             if (!$this->adapter->exists($path)) {
+                Emitter::for($this)->with(key: $key)->emit(Signal::ITEM_MISSED);
                 return $default;
             }
 
@@ -558,13 +576,17 @@
 
                 if (!$cache instanceof Cache || !$cache->isFresh()) {
                     $this->delete($key);
+                    Emitter::for($this)->with(key: $key)->emit(Signal::ITEM_MISSED);
                     return $default;
                 }
 
-                return $cache->getContent();
+                $content = $cache->getContent();
+                Emitter::for($this)->with(key: $key, value: $content)->emit(Signal::ITEM_HIT);
+                return $content;
             }
             catch (Throwable $e) {
                 $this->delete($key);
+                Emitter::for($this)->with(key: $key)->emit(Signal::ITEM_MISSED);
                 return $default;
             }
         }
@@ -859,6 +881,7 @@
                 $this->adapter->write($registryFile, implode(PHP_EOL, $registryEntries) . PHP_EOL);
             }
 
+            Emitter::for($this)->with(count: $count)->emit(Signal::CACHE_REBUILT);
             return $count;
         }
 
@@ -971,6 +994,8 @@
                 if (!empty($tags)) {
                     $this->tagManager->registerTags($path, $tags);
                 }
+
+                Emitter::for($this)->with(key: $key, value: $value, ttl: $ttl, tags: $tags)->emit(Signal::ITEM_WRITTEN);
                 return true;
             }
             catch (Throwable $e) {
