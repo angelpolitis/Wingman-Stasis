@@ -1,0 +1,37 @@
+{
+    "name": "wingman/stasis",
+    "type": "library",
+    "description": "A self-contained caching engine with a swappable adapter model (Local filesystem, APCu, Redis, Memcached), configurable key sharding, tag-based invalidation, PSR-16-compatible method signatures, and atomic increment/decrement counters.",
+    "keywords": ["php", "cache", "caching", "psr-16", "file-cache", "apcu", "redis", "memcached", "tagging", "sharding", "wingman"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Politis",
+            "email": "info@angelpolitis.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.0"
+    },
+    "suggest": {
+        "wingman/cortex": "Enables configuration hydration via #[Configurable] attributes and Configuration::find().",
+        "wingman/console": "Required by the cache:repair console command.",
+        "wingman/helix": "Required for proxy-based adapter integration in Cacher::setAdapter().",
+        "wingman/synapse": "Required by the Synapse DI bridge (CacherFactory and Provider).",
+        "ext-apcu": "Required by ApcuAdapter for in-memory caching.",
+        "ext-redis": "Required by RedisAdapter for distributed caching.",
+        "ext-memcached": "Required by MemcachedAdapter for distributed caching."
+    },
+    "autoload": {
+        "psr-4": {
+            "Wingman\\Stasis\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Wingman\\Stasis\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

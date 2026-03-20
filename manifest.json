@@ -1,0 +1,52 @@
+{
+    "name": "Wingman/Stasis",
+    "version": "1.0.0",
+    "type": "library",
+    "description": "A self-contained, framework-agnostic caching engine with a swappable adapter model (Local filesystem, APCu, Redis, Memcached), configurable key sharding, tag-based invalidation, PSR-16-compatible method signatures, atomic increment/decrement counters, and a built-in repair command. Integrates transparently with the Wingman framework via Cortex configuration hydration and Synapse DI, but operates fully standalone with sensible defaults and zero mandatory external dependencies.",
+    "authors": [
+        {
+            "name": "Angel Politis",
+            "email": "info@angelpolitis.com"
+        }
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/angelpolitis/Wingman-Stasis.git"
+    },
+    "homepage": "https://github.com/angelpolitis/Wingman-Stasis",
+    "php": ">=8.0",
+    "dependencies": [
+        {
+            "package": "Wingman/Argus",
+            "version": ">=1.0",
+            "optional": true
+        },
+        {
+            "package": "Wingman/Console",
+            "version": ">=1.0",
+            "optional": true
+        },
+        {
+            "package": "Wingman/Cortex",
+            "version": ">=1.0",
+            "optional": true
+        },
+        {
+            "package": "Wingman/Helix",
+            "version": ">=1.0",
+            "optional": true
+        },
+        {
+            "package": "Wingman/Synapse",
+            "version": ">=1.0",
+            "optional": true
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Wingman.Stasis.": "src/",
+            "Wingman.Stasis.Tests.": "tests/"
+        }
+    }
+}
